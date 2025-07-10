@@ -1,346 +1,364 @@
-#include <RemoteXY.h>
+// --- Built-in LED Configuration ---
+const int BUILTIN_LED_PIN = 2; // GPIO 2 is common for built-in LED
+unsigned long ledTurnOnMillis = 0;
+bool isLedActive = false;
+const unsigned long ledActiveDuration = 5000; // 5 seconds
 
-// you can enable debug logging to Serial at 115200
-//#define REMOTEXY__DEBUGLOG
+// --- Motor and Liquid Configuration ---
+const int pwmPins[10] = { 12, 14, 27, 26, 25, 33, 32, 35, 23, 22 };
 
-// RemoteXY select connection mode and include library
-
-
-// RemoteXY connection settings
-#define REMOTEXY_BLUETOOTH_NAME "BN_DrinkMaster8000"
-
-
-// RemoteXY GUI configuration
-#pragma pack(push, 1)
-uint8_t RemoteXY_CONF[] =  // 796 bytes
-  { 255, 27, 0, 0, 0, 21, 3, 18, 0, 0, 0, 8, 1, 106, 200, 5, 1, 0, 0, 0,
-    0, 4, 0, 129, 3, 17, 98, 12, 64, 179, 68, 114, 105, 110, 107, 32, 77, 97, 115, 116,
-    101, 114, 32, 56, 48, 48, 48, 0, 131, 5, 81, 97, 22, 9, 179, 165, 24, 77, 105, 120,
-    101, 100, 32, 68, 114, 105, 110, 107, 115, 0, 38, 2, 131, 33, 130, 40, 14, 9, 121, 123,
-    24, 68, 114, 105, 110, 107, 115, 0, 42, 1, 1, 8, 157, 90, 25, 3, 138, 27, 67, 108,
-    101, 97, 110, 80, 114, 111, 103, 114, 97, 109, 0, 14, 0, 1, 0, 0, 53, 43, 3, 1,
-    31, 65, 112, 101, 114, 111, 108, 32, 83, 112, 114, 105, 116, 122, 0, 130, 247, 43, 119, 1,
-    27, 17, 1, 53, 0, 53, 43, 3, 119, 31, 77, 111, 106, 105, 116, 111, 0, 1, 0, 44,
-    53, 43, 3, 163, 31, 68, 97, 105, 113, 117, 105, 114, 105, 0, 130, 247, 87, 119, 1, 27,
-    17, 1, 53, 44, 53, 43, 3, 65, 31, 71, 105, 110, 32, 83, 117, 110, 114, 105, 115, 101,
-    0, 1, 0, 88, 53, 44, 3, 79, 31, 83, 99, 114, 101, 119, 100, 114, 105, 118, 101, 114,
-    0, 130, 247, 132, 119, 1, 27, 17, 1, 53, 88, 53, 44, 3, 124, 26, 84, 111, 109, 67,
-    111, 108, 108, 105, 110, 115, 0, 1, 0, 133, 53, 43, 3, 67, 31, 66, 101, 101, 115, 75,
-    110, 101, 101, 0, 1, 53, 133, 53, 43, 3, 39, 31, 71, 105, 110, 80, 111, 109, 0, 130,
-    249, 175, 119, 1, 27, 17, 130, 53, 219, 1, 213, 27, 17, 131, 31, 180, 49, 16, 2, 17,
-    2, 31, 78, 101, 120, 116, 32, 80, 97, 103, 101, 0, 26, 2, 14, 0, 131, 27, 177, 54,
-    22, 2, 17, 2, 31, 78, 101, 120, 116, 32, 80, 97, 103, 101, 0, 42, 2, 1, 0, 0,
-    53, 43, 3, 152, 27, 71, 105, 109, 108, 101, 116, 0, 130, 247, 43, 119, 1, 27, 17, 1,
-    53, 0, 53, 43, 3, 141, 31, 82, 105, 99, 107, 101, 121, 0, 1, 0, 44, 53, 43, 3,
-    96, 26, 71, 105, 110, 70, 105, 122, 122, 0, 130, 247, 87, 119, 1, 27, 17, 1, 53, 44,
-    53, 43, 3, 124, 26, 83, 111, 117, 116, 104, 115, 105, 100, 101, 0, 1, 0, 88, 53, 44,
-    3, 1, 31, 70, 111, 114, 75, 105, 100, 115, 0, 130, 247, 132, 119, 1, 27, 17, 1, 53,
-    88, 53, 44, 3, 31, 25, 71, 105, 110, 83, 111, 100, 97, 0, 1, 0, 133, 53, 43, 3,
-    51, 31, 71, 105, 110, 83, 112, 114, 105, 116, 122, 0, 1, 53, 133, 53, 43, 3, 193, 31,
-    71, 105, 110, 78, 74, 117, 105, 99, 101, 0, 130, 249, 175, 119, 1, 27, 17, 130, 53, 219,
-    1, 213, 27, 17, 10, 0, 130, 249, 45, 119, 1, 27, 17, 130, 249, 89, 119, 1, 27, 17,
-    130, 233, 134, 78, 1, 27, 17, 130, 55, 224, 1, 167, 27, 17, 131, 29, 174, 50, 22, 2,
-    17, 2, 31, 76, 97, 115, 116, 32, 112, 97, 103, 101, 0, 170, 1, 1, 0, 0, 55, 45,
-    3, 94, 28, 86, 111, 100, 107, 97, 76, 101, 109, 111, 110, 0, 1, 56, 0, 50, 45, 3,
-    134, 31, 86, 111, 100, 107, 97, 32, 83, 111, 100, 97, 0, 1, 0, 46, 55, 43, 3, 36,
-    31, 86, 111, 100, 107, 97, 32, 83, 112, 114, 105, 116, 122, 0, 1, 56, 46, 50, 43, 3,
-    51, 31, 82, 117, 109, 80, 117, 110, 99, 104, 0, 1, 0, 90, 55, 44, 3, 5, 31, 82,
-    117, 109, 32, 83, 111, 100, 97, 0, 13, 0, 1, 255, 0, 55, 45, 3, 0, 31, 83, 111,
-    100, 97, 0, 130, 249, 45, 119, 1, 27, 17, 1, 54, 0, 53, 45, 3, 52, 31, 74, 117,
-    105, 99, 101, 0, 1, 0, 46, 54, 43, 3, 68, 27, 83, 121, 114, 117, 112, 0, 130, 249,
-    89, 119, 1, 27, 17, 1, 54, 46, 53, 43, 3, 177, 31, 80, 114, 111, 115, 101, 99, 99,
-    111, 0, 1, 0, 90, 54, 44, 3, 1, 31, 65, 112, 101, 114, 111, 108, 0, 130, 249, 134,
-    119, 1, 27, 17, 1, 54, 90, 53, 44, 3, 31, 25, 82, 117, 109, 0, 1, 0, 135, 54,
-    42, 3, 166, 27, 71, 105, 110, 0, 1, 55, 135, 52, 42, 3, 193, 31, 86, 111, 100, 107,
-    97, 0, 130, 251, 177, 119, 1, 27, 17, 130, 54, 221, 1, 213, 27, 17 };
-
-// this structure defines all the variables and events of your control interface
-struct {
-
-  // input variables
-  uint8_t clean_program;  // =1 if button pressed, else =0
-  uint8_t AperolSpritz;   // =1 if button pressed, else =0
-  uint8_t Mojito;         // =1 if button pressed, else =0
-  uint8_t Daiquiri;       // =1 if button pressed, else =0
-  uint8_t GinSunrise;     // =1 if button pressed, else =0
-  uint8_t Screwdriver;    // =1 if button pressed, else =0
-  uint8_t TomCollins;     // =1 if button pressed, else =0
-  uint8_t BeesKnee;       // =1 if button pressed, else =0
-  uint8_t GinPom;         // =1 if button pressed, else =0
-  uint8_t Southside;      // =1 if button pressed, else =0
-  uint8_t ForKids;        // =1 if button pressed, else =0
-  uint8_t GinSoda;        // =1 if button pressed, else =0
-  uint8_t GinSpritz;      // =1 if button pressed, else =0
-  uint8_t GinNJuice;      // =1 if button pressed, else =0
-  uint8_t VodkaLemon;     // =1 if button pressed, else =0
-  uint8_t VodkaSoda;      // =1 if button pressed, else =0
-  uint8_t VodkaSpritz;    // =1 if button pressed, else =0
-  uint8_t RumPunch;       // =1 if button pressed, else =0
-  uint8_t RumSoda;        // =1 if button pressed, else =0
-  uint8_t Soda;           // =1 if button pressed, else =0
-  uint8_t Juice;          // =1 if button pressed, else =0
-  uint8_t Syrup;          // =1 if button pressed, else =0
-  uint8_t Prosecco;       // =1 if button pressed, else =0
-  uint8_t Aperol;         // =1 if button pressed, else =0
-  uint8_t Rum;            // =1 if button pressed, else =0
-  uint8_t Gin;            // =1 if button pressed, else =0
-  uint8_t Vodka;          // =1 if button pressed, else =0
-
-  // other variable
-  uint8_t connect_flag;  // =1 if wire connected, else =0
-
-} RemoteXY;
-#pragma pack(pop)  // netusim co to je je to z toho programu aj vsetko nad comentom je odtial
-
-//#define PIN_GINSUNRISE 2  // from remotexy takto oni zadefinovaly pin 2 idk co je lepsie
-
-
-
-// Motor Control Pins for 10 Liquids
-const int pwmPins[10] = {12, 14, 27, 26, 25, 33, 32, 35, 23, 22}; // Assign each liquid to a PWM pin
-
-// Mapping for Liquids
 enum Liquids {
-  APEROL = 0,
-  PROSECCO,
-  SODA_WATER,
-  VODKA,
-  GIN,
-  WHITE_RUM,
-  TEQUILA,
-  BOURBON,
-  TRIPLE_SEC,
-  SWEET_VERMOUTH
+  LIQ_APEROL = 0, // Renamed to avoid conflict with RemoteXY struct members if any were kept
+  LIQ_PROSECCO,
+  LIQ_SODA_WATER,
+  LIQ_VODKA,
+  LIQ_GIN,
+  LIQ_WHITE_RUM,
+  LIQ_TEQUILA,
+  LIQ_BOURBON,
+  LIQ_TRIPLE_SEC,
+  LIQ_SWEET_VERMOUTH
 };
 
-// Time calibration for dispensing liquids
-float ml_to_ms = 17.0; // Example: 20 milliseconds per ml (calibration needed)
+float ml_to_ms = 17.0; // Calibration: milliseconds per ml
+const int MOTOR_PWM_SPEED = 64; // Motor speed (0-255)
 
-// Motor State Tracking
 struct Motor {
   bool isRunning;
   unsigned long startTime;
   unsigned long duration;
-} motorState[10]; // One state for each motor
+} motorState[10];
 
-// Recipe Step Structure
 struct RecipeStep {
   int liquidIndex;
   int ml;
 };
 
-// Recipes
-const RecipeStep AperolSpritzRecipe[] = {
-  {APEROL, 50},
-  {PROSECCO, 50},
-  {SODA_WATER, 30}
+// --- RECIPE DEFINITIONS (Aligned with Python's Veci_s_Drinks.drinks_names) ---
+// IDs 0-27 for drinks, ID 28 for cleaning (handled separately)
+
+// ID 0: Aperol Spritz
+const RecipeStep recipe0_AperolSpritz[] = {
+  { LIQ_APEROL, 50 }, { LIQ_PROSECCO, 50 }, { LIQ_SODA_WATER, 30 }
 };
 
-const RecipeStep MojitoRecipe[] = {
-  {WHITE_RUM, 60},
-  {SODA_WATER, 90},
-  {SWEET_VERMOUTH, 15}
+// ID 1: Mojito (Simplified: Rum, Soda, Sweet Vermouth for lime/sugar)
+const RecipeStep recipe1_Mojito[] = {
+  { LIQ_WHITE_RUM, 60 }, { LIQ_SODA_WATER, 90 }, { LIQ_SWEET_VERMOUTH, 15 }
 };
 
-const RecipeStep DaiquiriRecipe[] = {
-  {WHITE_RUM, 50},
-  {SWEET_VERMOUTH, 25},
-  {TRIPLE_SEC, 10}
+// ID 2: Sweet Martini
+const RecipeStep recipe2_SweetMartini[] = {
+  { LIQ_GIN, 60 }, { LIQ_SWEET_VERMOUTH, 20 }
 };
 
-const RecipeStep TomCollinsRecipe[] = {
-  {GIN, 60},
-  {SODA_WATER, 30},
-  {SWEET_VERMOUTH, 15}
+// ID 3: Manhattan
+const RecipeStep recipe3_Manhattan[] = {
+  { LIQ_BOURBON, 50 }, { LIQ_SWEET_VERMOUTH, 25 } // Original had 50, adjusted for balance
 };
 
-const RecipeStep NegroniRecipe[] = {
-  {GIN, 50},
-  {SWEET_VERMOUTH, 50},
-  {APEROL, 50}
+// ID 4: Margarita (Simplified: Tequila, Triple Sec, Sweet Vermouth for lime)
+const RecipeStep recipe4_Margarita[] = {
+  { LIQ_TEQUILA, 50 }, { LIQ_TRIPLE_SEC, 25 }, { LIQ_SWEET_VERMOUTH, 15 }
 };
 
-const RecipeStep MargaritaRecipe[] = {
-  {TEQUILA, 50},
-  {TRIPLE_SEC, 25},
-  {SWEET_VERMOUTH, 25}
+// ID 5: Tom Collins (Simplified: Gin, Soda, Sweet Vermouth for lemon/sugar)
+const RecipeStep recipe5_TomCollins[] = {
+  { LIQ_GIN, 50 }, { LIQ_SODA_WATER, 100 }, { LIQ_SWEET_VERMOUTH, 15 }
 };
 
-const RecipeStep OldFashionedRecipe[] = {
-  {BOURBON, 60},
-  {SWEET_VERMOUTH, 25}
+// ID 6: Cosmopolitan (Simplified: Vodka, Triple Sec, Soda for cranberry, Sweet Vermouth for lime)
+const RecipeStep recipe6_Cosmopolitan[] = {
+  { LIQ_VODKA, 40 }, { LIQ_TRIPLE_SEC, 20 }, { LIQ_SODA_WATER, 30 }, { LIQ_SWEET_VERMOUTH, 10 }
 };
 
-const RecipeStep ManhattanRecipe[] = {
-  {BOURBON, 50},
-  {SWEET_VERMOUTH, 50}
+// ID 7: Sidecar (Simplified: Bourbon for Brandy, Triple Sec, Sweet Vermouth for lemon)
+const RecipeStep recipe7_Sidecar[] = {
+  { LIQ_BOURBON, 50 }, { LIQ_TRIPLE_SEC, 20 }, { LIQ_SWEET_VERMOUTH, 10 }
 };
 
-const RecipeStep CosmopolitanRecipe[] = {
-  {VODKA, 50},
-  {TRIPLE_SEC, 25},
-  {SODA_WATER, 25}
+// ID 8: Rum Sour (Simplified: Rum, Sweet Vermouth for lemon/sugar, touch of Soda)
+const RecipeStep recipe8_RumSour[] = {
+  { LIQ_WHITE_RUM, 50 }, { LIQ_SWEET_VERMOUTH, 25 }, { LIQ_SODA_WATER, 25 }
 };
 
-const RecipeStep MartiniRecipe[] = {
-  {GIN, 60},
-  {SWEET_VERMOUTH, 20}
+// ID 9: Long Island Iced Tea (Simplified: 5 spirits, Soda for sour/cola)
+const RecipeStep recipe9_LongIsland[] = {
+  { LIQ_VODKA, 15 }, { LIQ_GIN, 15 }, { LIQ_WHITE_RUM, 15 }, { LIQ_TEQUILA, 15 },
+  { LIQ_TRIPLE_SEC, 15 }, { LIQ_SODA_WATER, 50 } // Soda for volume and some fizz
 };
 
-const RecipeStep WhiskeySourRecipe[] = {
-  {BOURBON, 50},
-  {SODA_WATER, 50},
-  {TRIPLE_SEC, 20}
+// ID 10: Negroni
+const RecipeStep recipe10_Negroni[] = {
+  { LIQ_GIN, 30 }, { LIQ_SWEET_VERMOUTH, 30 }, { LIQ_APEROL, 30 }
 };
 
-const RecipeStep TequilaSunriseRecipe[] = {
-  {TEQUILA, 50},
-  {SODA_WATER, 50},
-  {APEROL, 25}
+// ID 11: Boulevardier Variation (Bourbon, Sweet Vermouth, Aperol for Campari)
+const RecipeStep recipe11_Boulevardier[] = {
+  { LIQ_BOURBON, 30 }, { LIQ_SWEET_VERMOUTH, 30 }, { LIQ_APEROL, 30 }
 };
 
-// Recipe List
+// ID 12: French 75 (Simplified: Gin, Prosecco, Sweet Vermouth for lemon/sugar)
+const RecipeStep recipe12_French75[] = {
+  { LIQ_GIN, 30 }, { LIQ_PROSECCO, 60 }, { LIQ_SWEET_VERMOUTH, 10 }
+};
+
+// ID 13: Gin Fizz (Simplified: Gin, Sweet Vermouth for lemon/sugar, Soda)
+const RecipeStep recipe13_GinFizz[] = {
+  { LIQ_GIN, 50 }, { LIQ_SWEET_VERMOUTH, 15 }, { LIQ_SODA_WATER, 80 }
+};
+
+// ID 14: Tequila Sunrise (Simplified: Tequila, Soda for OJ, Aperol for Grenadine)
+const RecipeStep recipe14_TequilaSunrise[] = {
+  { LIQ_TEQUILA, 50 }, { LIQ_SODA_WATER, 100 }, { LIQ_APEROL, 15 }
+};
+
+// ID 15: Rum Punch (Simplified: Rum, Triple Sec, Soda for juices, Aperol for color)
+const RecipeStep recipe15_RumPunch[] = {
+  { LIQ_WHITE_RUM, 50 }, { LIQ_TRIPLE_SEC, 20 }, { LIQ_SODA_WATER, 80 }, { LIQ_APEROL, 10 }
+};
+
+// ID 16: Gimlet (Simplified: Gin, Sweet Vermouth for lime cordial)
+const RecipeStep recipe16_Gimlet[] = {
+  { LIQ_GIN, 60 }, { LIQ_SWEET_VERMOUTH, 20 }
+};
+
+// ID 17: Vodka Spritz
+const RecipeStep recipe17_VodkaSpritz[] = {
+  { LIQ_VODKA, 50 }, { LIQ_PROSECCO, 50 }, { LIQ_SODA_WATER, 30 }
+};
+
+// ID 18: Gin Spritz
+const RecipeStep recipe18_GinSpritz[] = {
+  { LIQ_GIN, 50 }, { LIQ_PROSECCO, 50 }, { LIQ_SODA_WATER, 30 }
+};
+
+// ID 19: Rum Spritz
+const RecipeStep recipe19_RumSpritz[] = {
+  { LIQ_WHITE_RUM, 50 }, { LIQ_PROSECCO, 50 }, { LIQ_SODA_WATER, 30 }
+};
+
+// ID 20: Tequila Spritz
+const RecipeStep recipe20_TequilaSpritz[] = {
+  { LIQ_TEQUILA, 50 }, { LIQ_PROSECCO, 50 }, { LIQ_SODA_WATER, 30 }
+};
+
+// ID 21: Bourbon Spritz
+const RecipeStep recipe21_BourbonSpritz[] = {
+  { LIQ_BOURBON, 50 }, { LIQ_PROSECCO, 50 }, { LIQ_SODA_WATER, 30 }
+};
+
+// ID 22: Soda
+const RecipeStep recipe22_Soda[] = {
+  { LIQ_SODA_WATER, 150 }
+};
+
+// ID 23: Vodka Highball
+const RecipeStep recipe23_VodkaHighball[] = {
+  { LIQ_VODKA, 50 }, { LIQ_SODA_WATER, 120 }
+};
+
+// ID 24: Gin Highball
+const RecipeStep recipe24_GinHighball[] = {
+  { LIQ_GIN, 50 }, { LIQ_SODA_WATER, 120 }
+};
+
+// ID 25: Rum Highball
+const RecipeStep recipe25_RumHighball[] = {
+  { LIQ_WHITE_RUM, 50 }, { LIQ_SODA_WATER, 120 }
+};
+
+// ID 26: Tequila Highball
+const RecipeStep recipe26_TequilaHighball[] = {
+  { LIQ_TEQUILA, 50 }, { LIQ_SODA_WATER, 120 }
+};
+
+// ID 27: Bourbon Highball
+const RecipeStep recipe27_BourbonHighball[] = {
+  { LIQ_BOURBON, 50 }, { LIQ_SODA_WATER, 120 }
+};
+
+// --- Master Recipe List (Order MUST match Python IDs 0-27) ---
 const RecipeStep* recipes[] = {
-  AperolSpritzRecipe,
-  MojitoRecipe,
-  DaiquiriRecipe,
-  TomCollinsRecipe,
-  NegroniRecipe,
-  MargaritaRecipe,
-  OldFashionedRecipe,
-  ManhattanRecipe,
-  CosmopolitanRecipe,
-  MartiniRecipe,
-  WhiskeySourRecipe,
-  TequilaSunriseRecipe
+  recipe0_AperolSpritz,    // ID 0
+  recipe1_Mojito,          // ID 1
+  recipe2_SweetMartini,    // ID 2
+  recipe3_Manhattan,       // ID 3
+  recipe4_Margarita,       // ID 4
+  recipe5_TomCollins,      // ID 5
+  recipe6_Cosmopolitan,    // ID 6
+  recipe7_Sidecar,         // ID 7
+  recipe8_RumSour,         // ID 8
+  recipe9_LongIsland,      // ID 9
+  recipe10_Negroni,        // ID 10
+  recipe11_Boulevardier,   // ID 11
+  recipe12_French75,       // ID 12
+  recipe13_GinFizz,        // ID 13
+  recipe14_TequilaSunrise, // ID 14
+  recipe15_RumPunch,       // ID 15
+  recipe16_Gimlet,         // ID 16
+  recipe17_VodkaSpritz,    // ID 17
+  recipe18_GinSpritz,      // ID 18
+  recipe19_RumSpritz,      // ID 19
+  recipe20_TequilaSpritz,  // ID 20
+  recipe21_BourbonSpritz,  // ID 21
+  recipe22_Soda,           // ID 22
+  recipe23_VodkaHighball,  // ID 23
+  recipe24_GinHighball,    // ID 24
+  recipe25_RumHighball,    // ID 25
+  recipe26_TequilaHighball,// ID 26
+  recipe27_BourbonHighball // ID 27
 };
 
+// --- Recipe Sizes (Automatically calculated for each recipe) ---
 const int recipeSizes[] = {
-  sizeof(AperolSpritzRecipe) / sizeof(RecipeStep),
-  sizeof(MojitoRecipe) / sizeof(RecipeStep),
-  sizeof(DaiquiriRecipe) / sizeof(RecipeStep),
-  sizeof(TomCollinsRecipe) / sizeof(RecipeStep),
-  sizeof(NegroniRecipe) / sizeof(RecipeStep),
-  sizeof(MargaritaRecipe) / sizeof(RecipeStep),
-  sizeof(OldFashionedRecipe) / sizeof(RecipeStep),
-  sizeof(ManhattanRecipe) / sizeof(RecipeStep),
-  sizeof(CosmopolitanRecipe) / sizeof(RecipeStep),
-  sizeof(MartiniRecipe) / sizeof(RecipeStep),
-  sizeof(WhiskeySourRecipe) / sizeof(RecipeStep),
-  sizeof(TequilaSunriseRecipe) / sizeof(RecipeStep)
+  sizeof(recipe0_AperolSpritz) / sizeof(RecipeStep),
+  sizeof(recipe1_Mojito) / sizeof(RecipeStep),
+  sizeof(recipe2_SweetMartini) / sizeof(RecipeStep),
+  sizeof(recipe3_Manhattan) / sizeof(RecipeStep),
+  sizeof(recipe4_Margarita) / sizeof(RecipeStep),
+  sizeof(recipe5_TomCollins) / sizeof(RecipeStep),
+  sizeof(recipe6_Cosmopolitan) / sizeof(RecipeStep),
+  sizeof(recipe7_Sidecar) / sizeof(RecipeStep),
+  sizeof(recipe8_RumSour) / sizeof(RecipeStep),
+  sizeof(recipe9_LongIsland) / sizeof(RecipeStep),
+  sizeof(recipe10_Negroni) / sizeof(RecipeStep),
+  sizeof(recipe11_Boulevardier) / sizeof(RecipeStep),
+  sizeof(recipe12_French75) / sizeof(RecipeStep),
+  sizeof(recipe13_GinFizz) / sizeof(RecipeStep),
+  sizeof(recipe14_TequilaSunrise) / sizeof(RecipeStep),
+  sizeof(recipe15_RumPunch) / sizeof(RecipeStep),
+  sizeof(recipe16_Gimlet) / sizeof(RecipeStep),
+  sizeof(recipe17_VodkaSpritz) / sizeof(RecipeStep),
+  sizeof(recipe18_GinSpritz) / sizeof(RecipeStep),
+  sizeof(recipe19_RumSpritz) / sizeof(RecipeStep),
+  sizeof(recipe20_TequilaSpritz) / sizeof(RecipeStep),
+  sizeof(recipe21_BourbonSpritz) / sizeof(RecipeStep),
+  sizeof(recipe22_Soda) / sizeof(RecipeStep),
+  sizeof(recipe23_VodkaHighball) / sizeof(RecipeStep),
+  sizeof(recipe24_GinHighball) / sizeof(RecipeStep),
+  sizeof(recipe25_RumHighball) / sizeof(RecipeStep),
+  sizeof(recipe26_TequilaHighball) / sizeof(RecipeStep),
+  sizeof(recipe27_BourbonHighball) / sizeof(RecipeStep)
 };
 
-// Non-blocking Motor Control Function
+const int numRecipes = sizeof(recipes) / sizeof(recipes[0]); // Total number of defined drink recipes
+
+// --- Functions ---
 void nalievaj(int liquidIndex, int ml) {
+  if (liquidIndex < 0 || liquidIndex >= 10) {
+    Serial.print("Error: Invalid liquidIndex in nalievaj: ");
+    Serial.println(liquidIndex);
+    return;
+  }
   if (!motorState[liquidIndex].isRunning) {
     motorState[liquidIndex].isRunning = true;
     motorState[liquidIndex].startTime = millis();
-    motorState[liquidIndex].duration = ml * ml_to_ms;
-    analogWrite(pwmPins[liquidIndex], 64); // Run motor at 25% speed
+    motorState[liquidIndex].duration = (unsigned long)ml * ml_to_ms; // Cast to unsigned long for safety
+    analogWrite(pwmPins[liquidIndex], MOTOR_PWM_SPEED);
+    Serial.print("Dispensing Liquid: "); Serial.print(liquidIndex);
+    Serial.print(", Amount (ms): "); Serial.println(motorState[liquidIndex].duration);
   }
 }
 
-// Update Motors Function (Non-blocking timing)
 void updateMotors() {
   unsigned long currentTime = millis();
   for (int i = 0; i < 10; i++) {
     if (motorState[i].isRunning && (currentTime - motorState[i].startTime >= motorState[i].duration)) {
-      analogWrite(pwmPins[i], 0); // Stop motor
-      motorState[i].isRunning = false; // Mark motor as stopped
+      analogWrite(pwmPins[i], 0);
+      motorState[i].isRunning = false;
+      Serial.print("Stopped Liquid: "); Serial.println(i);
     }
   }
 }
 
-// Run Recipe Function (Non-blocking)
 void runRecipe(const RecipeStep* recipe, int size) {
+  Serial.println("Starting recipe...");
   for (int i = 0; i < size; i++) {
     nalievaj(recipe[i].liquidIndex, recipe[i].ml);
   }
 }
 
-// Cleaning Function (Non-blocking)
 void cleanAll() {
+  Serial.println("Starting cleaning cycle for all motors...");
   for (int i = 0; i < 10; i++) {
-    Serial.print("Cleaning motor ");
-    Serial.println(i);
-    nalievaj(i, 100);
+    nalievaj(i, 100); // Dispense 100ml equivalent for cleaning
   }
 }
 
-
-// Setup Function
 void setup() {
   Serial.begin(115200);
+  while (!Serial); // Optional: wait for serial connection
 
-  // Initialize motor pins
+  pinMode(BUILTIN_LED_PIN, OUTPUT);
+  digitalWrite(BUILTIN_LED_PIN, LOW);
+
+  Serial.println("DrinkMaster 8000 Initializing...");
+  Serial.print("Number of recipes configured: "); Serial.println(numRecipes);
+
   for (int i = 0; i < 10; i++) {
     pinMode(pwmPins[i], OUTPUT);
-    analogWrite(pwmPins[i], 0); // Ensure motors are off at start
-    motorState[i] = {false, 0, 0}; // Initialize motor states
+    analogWrite(pwmPins[i], 0);
+    motorState[i] = { false, 0, 0 };
   }
-
-  // Initialize RemoteXY
-  BLEDevice::init("RemoteXY");
-  RemoteXY_Init();  // Initialize RemoteXY
 }
 
-// Main Loop
 void loop() {
-  updateMotors(); // Update motor states
-  RemoteXY_Handler();
+  updateMotors();     // Continuously update motor states
 
-  // Check and run recipes based on button presses
-  if (RemoteXY.clean_program) {
-    cleanAll();
-    RemoteXY.clean_program = 0; // Reset clean flag
+  // --- LED Blinking Logic ---
+  if (isLedActive) {
+    if (millis() - ledTurnOnMillis >= ledActiveDuration) {
+      digitalWrite(BUILTIN_LED_PIN, LOW);
+      isLedActive = false;
+      // Serial.println("LED OFF"); // Optional: for debugging
+    }
   }
 
-  if (RemoteXY.AperolSpritz) {
-    runRecipe(AperolSpritzRecipe, recipeSizes[0]);
-    RemoteXY.AperolSpritz = 0;
-  }
-  if (RemoteXY.Mojito) {
-    runRecipe(MojitoRecipe, recipeSizes[1]);
-    RemoteXY.Mojito = 0;
-  }
-  if (RemoteXY.Daiquiri) {
-    runRecipe(DaiquiriRecipe, recipeSizes[2]);
-    RemoteXY.Daiquiri = 0;
-  }
-  if (RemoteXY.TomCollins) {
-    runRecipe(TomCollinsRecipe, recipeSizes[3]);
-    RemoteXY.TomCollins = 0;
-  }
-  if (RemoteXY.Negroni) {
-    runRecipe(NegroniRecipe, recipeSizes[4]);
-    RemoteXY.Negroni = 0;
-  }
-  if (RemoteXY.Margarita) {
-    runRecipe(MargaritaRecipe, recipeSizes[5]);
-    RemoteXY.Margarita = 0;
-  }
-  if (RemoteXY.OldFashioned) {
-    runRecipe(OldFashionedRecipe, recipeSizes[6]);
-    RemoteXY.OldFashioned = 0;
-  }
-  if (RemoteXY.Manhattan) {
-    runRecipe(ManhattanRecipe, recipeSizes[7]);
-    RemoteXY.Manhattan = 0;
-  }
-  if (RemoteXY.Cosmopolitan) {
-    runRecipe(CosmopolitanRecipe, recipeSizes[8]);
-    RemoteXY.Cosmopolitan = 0;
-  }
-  if (RemoteXY.Martini) {
-    runRecipe(MartiniRecipe, recipeSizes[9]);
-    RemoteXY.Martini = 0;
-  }
-  if (RemoteXY.WhiskeySour) {
-    runRecipe(WhiskeySourRecipe, recipeSizes[10]);
-    RemoteXY.WhiskeySour = 0;
-  }
-  if (RemoteXY.TequilaSunrise) {
-    runRecipe(TequilaSunriseRecipe, recipeSizes[11]);
-    RemoteXY.TequilaSunrise = 0;
+  // --- Serial Command Handling from Raspberry Pi ---
+  if (Serial.available()) {
+    String inputString = Serial.readStringUntil('\n');
+    inputString.trim();
+    
+    // Attempt to parse the command string to an integer
+    // toInt() returns 0 if conversion fails AND the string is not "0"
+    long parsedNum = inputString.toInt(); 
+    int receivedCommandId = -1; // Default to invalid
+
+    if (inputString == "0") { // toInt() returns 0 for "0", which is valid
+        receivedCommandId = 0;
+    } else if (parsedNum != 0) { // toInt() returns non-zero for other valid numbers
+        receivedCommandId = (int)parsedNum;
+    }
+    // else: conversion failed for non-"0" strings that don't parse to non-zero int,
+    // or input was not a number. receivedCommandId remains -1.
+
+    if (receivedCommandId != -1) {
+        Serial.print("Received RPi Command ID: ");
+        Serial.println(receivedCommandId);
+
+        // Activate LED
+        digitalWrite(BUILTIN_LED_PIN, HIGH);
+        isLedActive = true;
+        ledTurnOnMillis = millis();
+        Serial.println("LED ON");
+
+        if (receivedCommandId == 28) { // Python ID 28 for "Clean program"
+            Serial.println("Executing Clean Program via RPi command.");
+            cleanAll();
+        } else if (receivedCommandId >= 0 && receivedCommandId < numRecipes) {
+            Serial.print("Executing recipe index ");
+            Serial.print(receivedCommandId);
+            Serial.println(" via RPi command.");
+            runRecipe(recipes[receivedCommandId], recipeSizes[receivedCommandId]);
+        } else {
+            Serial.print("Invalid or unmapped RPi drink command ID: ");
+            Serial.println(receivedCommandId);
+        }
+    } else {
+        Serial.print("Failed to parse RPi command: '");
+        Serial.print(inputString);
+        Serial.println("'");
+    }
   }
 }
